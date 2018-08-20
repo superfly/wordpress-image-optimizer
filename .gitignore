@@ -1,0 +1,4 @@
+.fly/
+.fly.secrets.yml
+node_modules
+.DS_STORE
