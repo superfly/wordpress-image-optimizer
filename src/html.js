@@ -32,7 +32,6 @@ export async function withDocument(resp, req) {
 
       const mySite = "flyexample.wordpress.com"
       const key = [mySite, "image", imageNum].concat(vary).join(':')
-      console.log(key)
       imageNum = imageNum + 1
 
       let createImage = resp.document.createElement("img")
@@ -66,7 +65,52 @@ export async function withDocument(resp, req) {
         console.log("CACHE MISS", key)
 
         createImage.setAttribute("src", 'data:image/webp;base64,' + new Buffer(data).toString('base64'))
+
+        const url = createImage.getAttribute("src")
+
+        const srcSet = [
+          `${url} 600w`,
+          `${url} 900w`,
+          `${url} 1440w`
+        ]
+        
+        createImage.setAttribute("srcset", srcSet.join(","))
+
         el.replaceWith(createImage)
+      }
+    }
+
+    const imageWidths = {
+      "page-hero": {
+        selector: "header.page-hero"
+      }
+    }
+
+    for (const k of Object.keys(imageWidths)) {
+      const o = imageWidths[k]
+      const elements = resp.document.querySelectorAll(o.selector)
+      const append = '?' + k
+
+      for (const el of elements) {
+        let style = el.getAttribute('style')
+        if (style) {
+          const nstyle = style.replace(/background-image:\surl../,"")
+          const nstyle2 = nstyle.replace(/(?<=jpg|png\gif).*$/, "")
+
+          let backgroundImage = await fetch(nstyle2)
+          let data = await backgroundImage.arrayBuffer()
+
+          let image = new fly.Image(data)
+          image.webp()
+
+          const result = await image.toBuffer()
+          data = result.data
+
+          let createImage = resp.document.createElement("img")
+          createImage.setAttribute("src", 'data:image/webp;base64,' + new Buffer(data).toString('base64'))
+          el.replaceWith(createImage)
+
+        }
       }
     }
 
