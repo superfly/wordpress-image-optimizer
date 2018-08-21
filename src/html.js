@@ -80,14 +80,14 @@ export async function withDocument(resp, req) {
       }
     }
 
-    const imageWidths = {
+    const bgImages = {
       "page-hero": {
         selector: "header.page-hero"
       }
     }
 
-    for (const k of Object.keys(imageWidths)) {
-      const o = imageWidths[k]
+    for (const k of Object.keys(bgImages)) {
+      const o = bgImages[k]
       const elements = resp.document.querySelectorAll(o.selector)
       const append = '?' + k
 
