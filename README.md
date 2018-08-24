@@ -1,4 +1,4 @@
-# WordPress Image Optimizer
+# WordPress Accelerator 
 
 This Fly App speeds up any WordPress site by optimizing images and reducing render-blocking resources, which dramatically improves Lighthouse scores.
 
@@ -24,6 +24,7 @@ This app primarily optimizes images and reduces render-blocking resources:
 2. Lazy-loads offscreen and hidden images (image tags AND background images)
 3. Sets `srcset` attributes on image tags for proper image sizing
 4. Sets `defer` attributes on `<script>` tags
+5. Stores assets in Fly's global cache, speeding your app up all over the world 
 
 ## Try it yourself
 
