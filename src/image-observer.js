@@ -1,18 +1,31 @@
 export const lazyImageScript = `(function () {
   function preloadImage(img) {
+
     const src = img.dataset['imageSrc']
-    if (src && src.length > 0) img.src = src
 
-    const srcset = img.dataset['imageSrcset']
-    if (srcset && srcset.length > 0) img.srcset = srcset
+    if (src) {
+      if (src && src.length > 0) img.src = src
 
-    const style = img.dataset['style'] || ""
-    img.style = style
+      const srcset = img.dataset['imageSrcset']
+      if (srcset && srcset.length > 0) img.srcset = srcset
+
+      const style = img.dataset['style'] || ""
+      img.style = style
+    }
+
+    const bg = img.querySelector(".bgImgSrc")
+
+    if (bg) {
+      let src = bg.innerHTML
+      let parent = bg.parentNode
+      parent.style = "background-image:url('" + src + "');"
+    }
+
 
     //img.dataset['imageSrc'] = image.dataset['imageSrcset'] = image.data['style'] = ''
   }
   function hookupPreloads() {
-    const images = document.querySelectorAll('img[data-image-src],img[data-image-srcset]');
+    const images = document.querySelectorAll('img[data-image-src],img[data-image-srcset], .large-background-images, .small-background-images');
     // If we don't have support for intersection observer, load the images immediately
     if (!('IntersectionObserver' in window)) {
       Array.from(images).forEach(image => preloadImage(image));

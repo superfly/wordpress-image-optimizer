@@ -8,15 +8,28 @@ const assets = proxy("https://www.thewaltdisneycompany.com/wp-content/", { strip
 
 fly.http.respondWith(
   pipeline(
+    // set srcset attr on img tags, lazy-load img tags & background images, reduce render-blocking css & js
     responsiveImages,
+    // convert all images to webp
     processImages,
+    // rewrite image links so that we can handle image requests
     rewriteLinks,
+    // mount new image links to root
     mount({
       "/wp-content/": assets,
       "/": origin
     })
   )
 )
+
+const bgImages = {
+  "group1": {
+    selector: ".large-background-images"
+  },
+  "group2": {
+    selector: ".small-background-images"
+  }
+}
 
 const rewrites = [
   [/(https?:)?\/\/www.thewaltdisneycompany\.com.wp.content/g, "/wp-content/"]
@@ -39,11 +52,9 @@ function rewriteLinks(fetch) {
       contentType.includes("text/")
     ) {
       let body = await resp.text()
-      console.log("body length: ", body.length, resp.headers.get("content-encoding"))
       for (const r of rewrites) {
         body = body.replace(r[0], r[1])
       }
-      console.log("ran replacements:", body.length, contentType)
       resp.headers.delete("content-length")
       return new Response(body, resp)
     }
@@ -53,11 +64,13 @@ function rewriteLinks(fetch) {
 
 function responsiveImages(fetch) {
   return async function responsiveImages(req, init) {
-    const first = Date.now()
 
     if (req.method != "GET") {
       return fetch(req, init)
     }
+
+    // serve cached response if there is one
+
     const key = `html:${req.url}`
     let resp = await responseCache.get(key)
     if (resp) {
@@ -81,6 +94,43 @@ function responsiveImages(fetch) {
     const doc = Document.parse(body)
     const replacements = []
 
+    // set srcset attributes on image tags
+
+    const imageElements = doc.querySelectorAll('img[src]')
+    for (const img of imageElements) {
+      let imgSrc = img.getAttribute("src")
+      let imgSrcSet = img.getAttribute("srcset")
+      if (imgSrcSet === null || "") {
+        const srcSet = [
+          `${src}?/600w 600w`,
+          `${src}?/900w 900w`,
+          `${src}?/1440w 1440w`
+        ]
+        
+        img.setAttribute("srcset", srcSet.join(","))
+      }
+    }
+
+    // lazy-load background images
+
+    for (const bgImg of Object.keys(bgImages)) {
+      const o = bgImages[bgImg]
+      const elements = doc.querySelectorAll(o.selector)
+
+      for (const el of elements) {
+        let style = el.getAttribute('style')
+        if (style) {
+          let txt = style.substring(style.indexOf("url('") + 5)
+          let newSrc = txt.replace(/(?<=jpg).*$/,"")
+          
+          el.appendChild(`<p class="bgImgSrc" style="visibility:hidden;"" >${newSrc}</p>`)
+          el.setAttribute("style", "")
+          }
+        }
+      }
+
+    // lazy-load image tags
+
     for (const lazyImg of doc.querySelectorAll("img[src]")) {
       const src = lazyImg.getAttribute("src")
       const srcset = lazyImg.getAttribute("srcset")
@@ -102,6 +152,7 @@ function responsiveImages(fetch) {
         lazyImg.setAttribute("onerror", '')
     }
 
+    // add image-observer script to doc
 
     if (!doc.querySelector("script#lazy-images")) {
       let script = lazyImageScript
@@ -111,13 +162,24 @@ function responsiveImages(fetch) {
       }
     }
 
+    // reduce render-blocking-resources
+
+    doc.querySelector("#twdc-theme-main-css").setAttribute("media", "none")
+    doc.querySelector("#twdc-theme-main-css").setAttribute("onload", "if(media!='all')media='all'")
+
+    let scripts = doc.querySelectorAll("script")
+    for (const s of scripts) {
+      s.setAttribute("defer", true)
+    }
+
+    // return the html with new changes made
+
     body = doc.documentElement.outerHTML
     for (const r of replacements) {
       body = body.replace(r[0], r[1])
     }
     await fly.cache.set(key, body, 3600)
 
-    console.log("html took: ", Date.now() - first)
     resp = new Response(body, resp)
     await responseCache.set(key, resp, 3600)
     return resp
